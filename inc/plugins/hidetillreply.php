@@ -7,6 +7,7 @@ if(!defined("IN_MYBB")) {
 $plugins->add_hook('postbit', 'hidetillreply_hide');
 $plugins->add_hook('parse_quoted_message', 'hidetillreply_quote');
 $plugins->add_hook('newreply_threadreview_post','hidetillreply_newreply');
+$plugins->add_hook('search_results_post', 'hidetillreply_search');
 
 
 //Plugin Information
@@ -90,13 +91,10 @@ function hidetillreply_hide(&$post)
 	//If Plugin is enabled
     if($settings['hidetillreply_enable'] == 1) {
 
-		//We are just modifying first post in thread
+		//Just run this for first post in thread not all
 		if((int)$post['pid']===$mainpostpid) {
-			$allowed_group = explode(',', $mybb->settings['hidetillreply_allowed_group']);
-			$usergroup = $mybb->user['usergroup'];
-			$postusergroup = $post['usergroup'];
-			//If post is from allowed usergroup to hide content or user is guest
-			if($usergroup==1 || in_array($postusergroup, $allowed_group) || in_array('-1', $allowed_group)) {
+			if(!$mybb->user['uid'] || is_member($settings['hidetillreply_allowed_group'],$post)) {
+				$usergroup = $mybb->user['usergroup'];
 				//If user is guest
 				if($usergroup==1) {
 					$post['message'] = "<div class='red_alert'><b>Please login to unlock this content.</b></div>";
@@ -127,12 +125,10 @@ function hidetillreply_quote(&$quoted_post)
 	$mainpostpid = (int)$row['firstpost'];
 
     if($settings['hidetillreply_enable'] == 1) {
+		//Just run this for first post in thread not all
 		if((int)$quoted_post['pid']===$mainpostpid) {
-			$allowed_group = explode(',', $mybb->settings['hidetillreply_allowed_group']);
-			$usergroup = $mybb->user['usergroup'];
-			$postusergroup = $post['usergroup'];
-			//If post is from allowed usergroup to hide content or user is guest
-			if($usergroup==1 || in_array($postusergroup, $allowed_group) || in_array('-1', $allowed_group)) {
+			if(!$mybb->user['uid'] || is_member($settings['hidetillreply_allowed_group'],$post)) {
+				$usergroup = $mybb->user['usergroup'];
 				//If user is guest
 				if($usergroup==1) {
 					$quoted_post['message'] = "Please login to unlock this content.";
@@ -161,12 +157,10 @@ function hidetillreply_newreply()
 	$mainpostpid = (int)$thread['firstpost'];
 
     if($settings['hidetillreply_enable'] == 1) {
+		//Just run this for first post in thread not all
 		if((int)$post['pid']===$mainpostpid) {
-			$allowed_group = explode(',', $mybb->settings['hidetillreply_allowed_group']);
-			$usergroup = $mybb->user['usergroup'];
-			$postusergroup = $post['usergroup'];
-			//If post is from allowed usergroup to hide content or user is guest
-			if($usergroup==1 || in_array($postusergroup, $allowed_group) || in_array('-1', $allowed_group)) {
+			if(!$mybb->user['uid'] || is_member($settings['hidetillreply_allowed_group'],$post)) {
+				$usergroup = $mybb->user['usergroup'];
 				//If user is guest
 				if($usergroup==1) {
 					$post['message'] = "[b]Please login to unlock this content.[/b]";
@@ -184,4 +178,38 @@ function hidetillreply_newreply()
 			}
 		}
 	}
+}
+
+function hidetillreply_search()
+{
+	global $db, $mybb, $post, $settings, $prev;
+
+	$mainposttid = (int)$post['tid'];
+	$query = $db->simple_select("threads","*","tid='$mainposttid'");
+	$row = $db->fetch_array($query);
+	$mainpostpid = (int)$row['firstpost'];
+
+    if($settings['hidetillreply_enable'] == 1) {
+		//Just run this for first post in thread not all
+		if((int)$post['pid']===$mainpostpid) {
+			if(!$mybb->user['uid'] || is_member($settings['hidetillreply_allowed_group'],$post)) {
+				$usergroup = $mybb->user['usergroup'];
+				//If user is guest
+				if($usergroup==1) {
+					$prev = "Please login to unlock this content.";
+				} else {
+					$maintid = (int)$post['tid'];
+					$mainuid = (int)$mybb->user['uid'];
+					$query = $db->simple_select("posts","*","tid='$maintid' AND uid='$mainuid'");
+					$rows = $db->num_rows($query);
+					//If user has replied to the thread return else hide
+					if($rows>0) {
+					} else {
+						$prev = "Please reply to this thread to unlock the content.";			
+					}
+				}
+			}
+		}
+	}
+
 }
